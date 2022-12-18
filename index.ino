@@ -1,11 +1,13 @@
-#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 
-#include "./lib/config.h"
+#include "lib/wifi/connect.cpp"
 
 bool ledState = 1;
 const int wifiNotification = 2;
+
+const String DNS = "esp8266";
 
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
@@ -179,13 +181,7 @@ void setup(){
   pinMode(wifiNotification, OUTPUT);
   digitalWrite(wifiNotification, LOW);
 
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi..");
-  }
-
-  Serial.println(WiFi.localIP());
+  connectWifi(wifiNotification);
 
   initWebSocket();
 
@@ -193,10 +189,16 @@ void setup(){
     request->send_P(200, "text/html", index_html, processor);
   });
 
+  // Iniciar mDNS a direccion esp8266.local
+  if (!MDNS.begin(DNS)) {
+    Serial.println("Error iniciando mDNS");
+  }
+  Serial.printf("\nConnect to: http://%s.local/\n", DNS);
   server.begin();
 }
 
 void loop() {
   ws.cleanupClients();
+  MDNS.update();
   digitalWrite(wifiNotification, ledState);
 }
